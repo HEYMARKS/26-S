@@ -1,0 +1,676 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>26S · Cartografía de la acampada</title>
+<link rel="stylesheet" href="lib/leaflet.css">
+<script src="lib/leaflet.js"></script>
+<style>
+@font-face{font-family:"Stencil26";src:url(lib/fonts/big-shoulders-stencil-display-latin-900-normal.woff2) format("woff2");font-weight:900}
+@font-face{font-family:"Stencil26";src:url(lib/fonts/big-shoulders-stencil-display-latin-700-normal.woff2) format("woff2");font-weight:700}
+@font-face{font-family:"Grotesk26";src:url(lib/fonts/space-grotesk-latin-400-normal.woff2) format("woff2");font-weight:400}
+@font-face{font-family:"Grotesk26";src:url(lib/fonts/space-grotesk-latin-500-normal.woff2) format("woff2");font-weight:500}
+@font-face{font-family:"Grotesk26";src:url(lib/fonts/space-grotesk-latin-700-normal.woff2) format("woff2");font-weight:700}
+@font-face{font-family:"Mono26";src:url(lib/fonts/space-mono-latin-400-normal.woff2) format("woff2");font-weight:400}
+@font-face{font-family:"Mono26";src:url(lib/fonts/space-mono-latin-700-normal.woff2) format("woff2");font-weight:700}
+@font-face{font-family:"Mano26";src:url(lib/fonts/caveat-latin-500-normal.woff2) format("woff2");font-weight:500}
+@font-face{font-family:"Mano26";src:url(lib/fonts/caveat-latin-700-normal.woff2) format("woff2");font-weight:700}
+
+:root{
+  --papel:#f1ebdf; --papel2:#e9e1d1; --tinta:#1a1715; --naranja:#ff5a1f; --naranja-suave:#ffd9cc; --gris:#7b736a;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:#d9d1c2}
+body{font-family:Grotesk26,system-ui,sans-serif;color:var(--tinta)}
+button{font:inherit;color:inherit}
+
+/* ============ LIENZO 1920×1080 que se escala a cualquier pantalla ============ */
+#escena{position:absolute;left:50%;top:50%;width:1920px;height:1080px;transform-origin:0 0;overflow:hidden;
+  background-color:var(--papel);
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(26,23,21,.13) 1px, transparent 1.4px),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .1 0 0 0 0 .08 0 0 0 0 .06 0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size:24px 24px, 300px 300px;
+}
+
+/* trazo dibujado a mano: cualquier elemento con .sk tiene un borde "tembloroso" */
+.sk{position:relative}
+.sk::before{content:"";position:absolute;inset:-2px;border:2.2px solid var(--tinta);border-radius:inherit;filter:url(#rough);pointer-events:none}
+
+/* ============ COLUMNA IZQUIERDA ============ */
+#titulo{position:absolute;left:70px;top:30px;width:440px}
+#titulo h1{margin:0;font-family:Stencil26;font-weight:900;font-size:196px;line-height:.8;letter-spacing:-1px}
+#titulo h1 span{color:var(--naranja)}
+#titulo .sub{margin-top:16px;font-weight:500;font-size:20px;line-height:1.3;max-width:420px}
+#titulo .sub b{font-weight:700}
+#titulo .lema{position:absolute;left:300px;top:14px;font-family:Mano26;font-weight:700;font-size:31px;color:var(--naranja);transform:rotate(-8deg);line-height:.92}
+
+/* fotocopia de la Constitución */
+#constitucion{position:absolute;left:66px;top:330px;width:430px;height:300px;background:#fbf8f2;padding:24px 26px 18px;transform:rotate(-1.4deg);
+  box-shadow:0 1px 0 rgba(0,0,0,.05),0 12px 24px -14px rgba(0,0,0,.45);
+  clip-path:polygon(0 1%,6% 0,14% 1.2%,26% .2%,38% 1%,52% 0,63% .8%,77% 0,88% 1%,100% .3%,99.4% 22%,100% 48%,99.3% 73%,100% 99%,86% 100%,70% 99.2%,55% 100%,40% 99.4%,25% 100%,11% 99.3%,0 100%,.6% 76%,0 51%,.5% 26%)}
+#constitucion .cab{font-family:Mono26;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--gris);display:flex;justify-content:space-between;border-bottom:1px solid #cfc6b6;padding-bottom:8px;margin-bottom:12px}
+#constitucion p{margin:0;font-size:14.6px;line-height:1.48}
+#constitucion mark{background:linear-gradient(100deg,transparent 0 1%,rgba(255,90,31,.55) 2% 97%,transparent 98%);background-size:100% 70%;background-repeat:no-repeat;background-position:0 70%;color:inherit;padding:0 2px}
+.cinta{position:absolute;width:110px;height:30px;background:rgba(235,226,205,.78);box-shadow:0 1px 2px rgba(0,0,0,.08);z-index:3}
+#cinta1{left:200px;top:318px;transform:rotate(3deg)}
+#postit{position:absolute;left:318px;top:600px;width:200px;padding:14px 16px 12px;background:var(--naranja);color:#fff;transform:rotate(4deg);box-shadow:0 14px 22px -12px rgba(0,0,0,.5);z-index:4}
+#postit h4{margin:0 0 6px;font-family:Stencil26;font-weight:900;font-size:27px;line-height:.95;letter-spacing:.5px}
+#postit ul{margin:0;padding:0;list-style:none;font-family:Mano26;font-weight:700;font-size:20px;line-height:1.05}
+#postit li::before{content:"— "}
+#anotacion{position:absolute;left:84px;top:650px;font-family:Mano26;font-weight:700;font-size:25px;color:var(--tinta);transform:rotate(-3deg)}
+
+/* iconos */
+#iconos{position:absolute;left:52px;top:782px;width:430px;display:grid;grid-template-columns:1fr 1fr;row-gap:2px}
+.icono{background:none;border:0;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px;transition:transform .2s}
+.icono img{height:84px;width:auto;max-width:170px;object-fit:contain;transition:transform .25s}
+.icono span{font-family:Mano26;font-weight:700;font-size:23px;line-height:1}
+.icono:hover img{transform:rotate(-6deg) scale(1.08)}
+.icono:nth-child(2):hover img,.icono:nth-child(3):hover img{transform:rotate(6deg) scale(1.08)}
+
+/* ============ BARRA DE CAPAS ============ */
+#capas{position:absolute;left:560px;top:40px;right:64px;height:58px;display:flex;align-items:center;gap:14px}
+#capas .et{font-family:Mono26;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--gris);margin-right:4px}
+.capa{position:relative;display:flex;align-items:center;gap:10px;height:46px;padding:0 20px 0 14px;border:0;background:transparent;border-radius:24px;cursor:pointer;font-weight:500;font-size:18px;transition:background .15s,color .15s}
+.capa .caja{width:18px;height:18px;border:2px solid currentColor;border-radius:3px;position:relative;filter:url(#rough)}
+.capa.on{background:var(--tinta);color:var(--papel)}
+.capa.on .caja::after{content:"";position:absolute;left:3px;top:-5px;width:7px;height:14px;border:solid var(--naranja);border-width:0 3px 3px 0;transform:rotate(40deg)}
+.capa:not(.on):hover{background:var(--papel2)}
+.capa.pronto{opacity:.45;cursor:not-allowed}
+.capa.pronto small{font-family:Mano26;font-size:18px;font-weight:700;margin-left:2px}
+.capa i{font-style:normal;font-family:Mono26;font-size:12px;opacity:.6}
+
+/* ============ MARCO DEL PLANO ============ */
+#marco{position:absolute;left:560px;top:118px;width:1296px;height:880px;border-radius:6px;background:var(--papel)}
+#mapa{position:absolute;inset:0;border-radius:6px;overflow:hidden;background:transparent}
+.leaflet-container{background:transparent;font-family:Grotesk26}
+.plano-img{image-rendering:auto}
+
+/* regla alrededor del marco (como en un plano) */
+.regla{position:absolute;display:flex;justify-content:space-around;font-family:Mono26;font-size:11px;color:var(--gris)}
+#reglaT{left:0;right:0;top:-20px}#reglaB{left:0;right:0;bottom:-20px}
+#reglaL{top:0;bottom:0;left:-22px;flex-direction:column;align-items:center}#reglaR{top:0;bottom:0;right:-22px;flex-direction:column;align-items:center}
+/* norte y escala */
+#norte{position:absolute;right:22px;top:18px;width:54px;z-index:500;pointer-events:none}
+#escala{position:absolute;left:22px;bottom:18px;z-index:500;pointer-events:none;font-family:Mono26;font-size:11px}
+#escala .barra{display:flex;width:160px;height:8px;border:1.5px solid var(--tinta);margin-bottom:4px;filter:url(#rough)}
+#escala .barra i{flex:1}#escala .barra i:nth-child(odd){background:var(--tinta)}
+/* zoom */
+#zoom{position:absolute;right:20px;bottom:20px;z-index:500;display:flex;flex-direction:column;gap:8px}
+#zoom button{width:44px;height:44px;border:0;border-radius:50%;background:var(--papel);cursor:pointer;font-family:Mono26;font-size:22px;line-height:1;box-shadow:0 4px 10px -6px rgba(0,0,0,.5)}
+#zoom button:hover{background:var(--tinta);color:var(--papel)}
+#pista{position:absolute;left:1560px;top:1003px;font-family:Mano26;font-weight:700;font-size:23px;transform:rotate(-2deg);color:var(--gris)}
+
+/* marcadores del plano */
+.tag{font-family:Mono26;font-weight:700;font-size:12px;background:var(--tinta);color:var(--papel);padding:2px 6px;border-radius:3px;white-space:nowrap;transform:translate(-50%,-50%);display:inline-block;pointer-events:none;box-shadow:0 2px 0 var(--naranja)}
+.tag.claro{background:var(--papel);color:var(--tinta);box-shadow:0 0 0 1.5px var(--tinta)}
+.hot{cursor:pointer;transition:fill-opacity .15s,stroke-width .15s}
+.hot:hover{fill-opacity:.28!important;stroke-width:4!important}
+.pulso{animation:pulso 2.4s ease-in-out infinite}
+@keyframes pulso{0%,100%{stroke-opacity:.95}50%{stroke-opacity:.35}}
+.leaflet-tooltip.nota{background:var(--tinta);color:var(--papel);border:0;border-radius:3px;font-family:Grotesk26;font-weight:500;font-size:14px;padding:4px 9px;box-shadow:none}
+.leaflet-tooltip.nota::before{display:none}
+
+/* ============ PIE (cajetín) ============ */
+#pie{position:absolute;left:560px;right:64px;bottom:14px;height:30px;display:grid;grid-template-columns:1.5fr 1.4fr 1fr 1fr .5fr;border-top:1.2px solid var(--tinta);font-family:Mono26;font-size:10.5px;color:var(--gris)}
+#pie div{padding:7px 10px 0;border-left:1px solid #cbc2b2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#pie div:first-child{border-left:0;padding-left:0}
+#pie b{color:var(--tinta);font-weight:700}
+
+/* ============ CAPAS FLOTANTES ============ */
+#velo{position:absolute;inset:0;background:rgba(20,17,15,.84);z-index:2000;opacity:0;pointer-events:none;transition:opacity .3s}
+#velo.on{opacity:1;pointer-events:auto}
+#velo.claro{background:rgba(241,235,223,.78)}
+#velo.papel{background:rgba(241,235,223,.97)}
+.flotante{position:absolute;z-index:2100;display:none}
+.flotante.on{display:block}
+.cerrar{position:absolute;border:0;background:none;cursor:pointer;font-family:Mono26;font-size:30px;line-height:1;color:inherit}
+
+/* asambleas */
+#asamblea{left:160px;top:140px;width:1600px;height:800px;color:var(--papel)}
+#asamblea.on{display:flex;align-items:center;justify-content:center;text-align:center}
+#asamblea .foto{height:500px;background-color:rgba(241,235,223,.06);border:2.5px dashed rgba(241,235,223,.55);border-radius:4px;display:flex;align-items:center;justify-content:center;font-family:Mano26;font-weight:700;font-size:30px;color:rgba(241,235,223,.6);transform:rotate(-1.5deg);background-size:cover;background-position:center;filter:url(#rough)}
+#asamblea .num{font-family:Stencil26;font-weight:900;font-size:150px;line-height:.8;color:var(--naranja)}
+#asamblea .num{font-size:200px}
+#asamblea h2{margin:18px 0 22px;font-family:Stencil26;font-weight:900;font-size:150px;line-height:.86;letter-spacing:.5px;text-transform:uppercase}
+#asamblea .tipo{font-family:Mano26;font-weight:700;font-size:38px;color:var(--naranja)}
+#asamblea p{font-size:25px;line-height:1.4;max-width:680px;margin:0}
+#asamblea .extra{margin-top:26px}
+#asamblea .extra button{border:0;background:var(--naranja);color:#fff;font-weight:700;font-size:18px;padding:12px 18px;border-radius:24px;cursor:pointer}
+.entra{animation:entra .45s cubic-bezier(.2,.8,.2,1) both}
+@keyframes entra{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:none}}
+
+/* fichas de amigos */
+#fichas{inset:0;pointer-events:none}
+#fichas.on{display:flex;align-items:center;justify-content:center;gap:40px}
+#fichas img{height:900px;width:auto;pointer-events:auto;filter:drop-shadow(0 30px 40px rgba(0,0,0,.45));animation:carta .7s cubic-bezier(.2,.9,.25,1.15) both}
+#fichas img:nth-child(1){--r:-3deg}#fichas img:nth-child(2){--r:4deg;animation-delay:.12s}
+#fichas.dos img{height:840px}
+@keyframes carta{from{opacity:0;transform:perspective(1200px) translateY(260px) rotateX(35deg) rotateZ(-10deg) scale(.35)}to{opacity:1;transform:perspective(1200px) rotateZ(var(--r,-2deg))}}
+
+/* pancartas */
+#pancarta{inset:0;pointer-events:none}
+#pancarta.on{display:flex;flex-direction:column;align-items:center;justify-content:center}
+#pancarta img{width:1250px;height:720px;object-fit:contain;pointer-events:auto;filter:drop-shadow(0 26px 30px rgba(0,0,0,.5));animation:ondea .6s cubic-bezier(.2,.9,.25,1.1) both}
+#pancarta .pie{margin-top:26px;color:var(--papel);font-family:Mono26;font-size:14px;letter-spacing:.12em;text-transform:uppercase;opacity:.8}
+@keyframes ondea{from{opacity:0;transform:scale(.4) rotate(-8deg)}to{opacity:1;transform:rotate(-1.5deg)}}
+
+/* ventana-navegador */
+#ventana{left:620px;top:150px;width:1180px;height:800px;background:var(--papel);border-radius:10px;box-shadow:0 30px 60px -20px rgba(0,0,0,.6)}
+#ventana.on{display:flex;flex-direction:column}
+#ventana .barra{height:54px;display:flex;align-items:center;gap:14px;padding:0 16px;border-bottom:2px solid var(--tinta);cursor:grab;user-select:none;flex:none}
+#ventana .puntos{display:flex;gap:7px}#ventana .puntos i{width:13px;height:13px;border-radius:50%;border:1.8px solid var(--tinta)}
+#ventana .puntos i:first-child{background:var(--naranja)}
+#ventana .url{flex:1;height:32px;border-radius:16px;background:#fff;border:1.5px solid var(--tinta);display:flex;align-items:center;padding:0 14px;font-family:Mono26;font-size:13px;color:var(--gris);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+#ventana .fuera{font-weight:700;font-size:15px;color:var(--tinta);text-decoration:none;border-bottom:2px solid var(--naranja);white-space:nowrap}
+#ventana .cerrar{position:static;font-size:28px}
+#ventana .tabs{display:flex;gap:6px}
+#ventana .tabs button{border:1.5px solid var(--tinta);background:none;border-radius:14px;padding:3px 12px;cursor:pointer;font-size:14px;font-weight:500}
+#ventana .tabs button.on{background:var(--tinta);color:var(--papel)}
+#ventana .cuerpo{flex:1;position:relative;background:#fff;overflow:hidden}
+#ventana iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+#ventana .piev{height:78px;flex:none;border-top:2px solid var(--tinta);display:flex;align-items:center;gap:18px;padding:0 22px}
+#ventana .logo{height:54px;width:54px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;background:var(--tinta);color:var(--papel);font-family:Stencil26;font-weight:900;font-size:26px;overflow:hidden}
+#ventana .logo img{width:100%;height:100%;object-fit:cover}
+#ventana .piev b{display:block;font-size:20px}
+#ventana .aviso-web{margin-left:auto;font-family:Mano26;font-weight:700;font-style:normal;font-size:19px;color:var(--gris);max-width:360px;text-align:right;line-height:1.05}
+#ventana .piev span{font-family:Mono26;font-size:12px;color:var(--gris);text-transform:uppercase;letter-spacing:.08em}
+.pendiente{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:var(--papel);text-align:center}
+.pendiente b{font-family:Stencil26;font-weight:900;font-size:64px;line-height:.9}
+.pendiente span{font-family:Mano26;font-weight:700;font-size:28px;color:var(--gris)}
+/* señal cortada */
+#ruido{position:absolute;inset:0;width:100%;height:100%;background:#111}
+.senal{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;text-align:center;pointer-events:none;text-shadow:0 0 12px rgba(0,0,0,.9)}
+.senal b{font-family:Stencil26;font-weight:900;font-size:92px;line-height:.9;letter-spacing:1px}
+.senal span{font-family:Mono26;font-size:16px;letter-spacing:.2em;margin-top:14px;background:var(--naranja);padding:4px 10px}
+.senal .rec{position:absolute;left:26px;top:22px;font-family:Mono26;font-size:15px;letter-spacing:.1em}
+.senal .rec::before{content:"";display:inline-block;width:12px;height:12px;border-radius:50%;background:#555;margin-right:8px;vertical-align:-1px}
+
+/* tarjeta de carpa */
+#tarjeta{left:560px;top:250px;width:800px;min-height:400px;padding:54px 60px 50px;background:var(--papel);border-radius:8px;box-shadow:0 30px 60px -20px rgba(0,0,0,.6)}
+#tarjeta.on{display:flex;flex-direction:column;justify-content:center;animation:entra .4s cubic-bezier(.2,.8,.2,1) both}
+#tarjeta .n{font-family:Mono26;font-size:14px;letter-spacing:.12em;text-transform:uppercase;color:var(--gris)}
+#tarjeta h3{margin:10px 0 0;font-family:Stencil26;font-weight:900;font-size:84px;line-height:.9;text-transform:uppercase}
+#tarjeta .redes{display:flex;gap:12px;flex-wrap:wrap;margin-top:34px}
+#tarjeta .cerrar{right:20px;top:14px}
+.red{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:24px;background:var(--tinta);color:var(--papel);text-decoration:none;font-weight:700;font-size:17px}
+.red:hover{background:var(--naranja)}
+#ventana .redes{display:flex;gap:8px;margin-left:auto}
+#ventana .redes .red{padding:7px 14px;font-size:14px}
+/* timelapse */
+.tl-img{transition:none}
+#tlinfo{position:absolute;left:22px;bottom:18px;z-index:500;display:none;align-items:center;gap:12px;font-family:Mono26;font-size:13px;background:var(--papel);padding:8px 14px;border-radius:20px;box-shadow:0 4px 10px -6px rgba(0,0,0,.5)}
+#tlinfo.on{display:flex}
+#tlinfo i{width:9px;height:9px;border-radius:50%;background:#cfc6b6}
+#tlinfo i.on{background:var(--naranja)}
+.capa.tl.on{background:var(--naranja);color:#fff}
+
+/* galería */
+#galeria{inset:0;color:var(--papel)}
+#galeria.on{display:block}
+#galeria .marcofoto{position:absolute;left:110px;right:110px;top:50px;bottom:150px;display:flex;align-items:center;justify-content:center}
+#galeria .marcofoto img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 30px 40px rgba(0,0,0,.6))}
+#galeria .ctrl{position:absolute;left:0;right:0;bottom:40px;display:flex;align-items:center;justify-content:center;gap:26px}
+#galeria .flecha{width:58px;height:58px;border-radius:50%;border:2px solid var(--papel);background:none;color:var(--papel);font-size:26px;cursor:pointer}
+#galeria .flecha:hover{background:var(--papel);color:var(--tinta)}
+#galeria .flecha:disabled{opacity:.25;cursor:default;background:none;color:var(--papel)}
+#galeria .miniaturas{display:flex;gap:8px;max-width:1100px;overflow:hidden}
+#galeria .miniaturas img{height:56px;width:80px;object-fit:cover;opacity:.4;cursor:pointer;border-radius:2px;background:#fff}
+#galeria .miniaturas img.on{opacity:1;outline:2px solid var(--naranja);outline-offset:2px}
+#galeria .cont{font-family:Mono26;font-size:15px;min-width:70px;text-align:center}
+#galeria .aviso{position:absolute;top:18px;left:0;right:0;text-align:center;font-family:Mano26;font-weight:700;font-size:24px;color:var(--naranja)}
+
+/* planificación (megáfono) */
+#plan{inset:0}
+#plan.on{display:block}
+#plan h2{position:absolute;left:90px;top:60px;margin:0;font-family:Stencil26;font-weight:900;font-size:120px;line-height:.85;text-transform:uppercase;color:var(--tinta)}
+#plan h2 small{display:block;font-family:Mano26;font-weight:700;font-size:40px;text-transform:none;color:var(--naranja);margin-top:12px;transform:rotate(-2deg)}
+.post{position:absolute;width:360px;height:560px;background:#fff;padding:10px;box-shadow:0 20px 40px -18px rgba(0,0,0,.55);cursor:pointer;transition:transform .25s}
+.post iframe{width:100%;height:100%;border:0;pointer-events:none}
+.post.frente iframe{pointer-events:auto}
+.post .cinta{left:125px;top:-14px}
+.post:hover{transform:rotate(0) scale(1.02)!important}
+#plan .invita{position:absolute;left:96px;top:440px;width:420px;font-size:24px;line-height:1.35}
+#plan .invita b{background:var(--naranja);color:#fff;padding:0 4px}
+#plan .cerrar{right:40px;top:30px;color:var(--tinta)}
+</style>
+</head>
+<body>
+
+<!-- filtro del trazo a mano -->
+<svg width="0" height="0" style="position:absolute">
+  <filter id="rough"><feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="3" result="t"/><feDisplacementMap in="SourceGraphic" in2="t" scale="3.2"/></filter>
+</svg>
+
+<div id="escena">
+
+  <!-- ============ COLUMNA IZQUIERDA ============ -->
+  <header id="titulo">
+    <h1>26<span>S</span></h1>
+    <div class="lema">ni una<br>Maricarmen<br>más</div>
+    <div class="sub"><b>Cartografía de la acampada por la vivienda.</b><br>Puerta del Sol, Madrid · septiembre 2026</div>
+  </header>
+
+  <div class="cinta" id="cinta1"></div>
+  <article id="constitucion">
+    <div class="cab"><span>Constitución Española</span><span>Art. 47</span></div>
+    <p>Todos los españoles tienen derecho a <mark>disfrutar de una vivienda digna y adecuada</mark>. Los poderes públicos promoverán las condiciones necesarias y establecerán las normas pertinentes para hacer efectivo este derecho, regulando la utilización del suelo de acuerdo con el interés general <mark>para impedir la especulación</mark>. La comunidad participará en las plusvalías que genere la acción urbanística de los entes públicos.</p>
+  </article>
+  <aside id="postit">
+    <h4>DECRETO<br>MARICARMEN</h4>
+    <ul>
+      <li>contratos indefinidos</li>
+      <li>congelar la subida del IPC</li>
+      <li>reformar la LAU</li>
+      <li>freno a los desahucios</li>
+    </ul>
+  </aside>
+  <div id="anotacion">¿y esto quién lo cumple? ↗</div>
+
+  <nav id="iconos">
+    <button class="icono" data-accion="directo"><img src="img/iconos/directo.png" alt=""><span>directo</span></button>
+    <button class="icono" data-accion="participan"><img src="img/iconos/casita.png" alt=""><span>quiénes participan</span></button>
+    <button class="icono" data-accion="galeria"><img src="img/iconos/camara.png" alt=""><span>galería</span></button>
+    <button class="icono" data-accion="plan"><img src="img/iconos/altavoz.png" alt=""><span>planificación</span></button>
+  </nav>
+
+  <!-- ============ CAPAS ============ -->
+  <div id="capas">
+    <span class="et">Capas</span>
+    <button class="capa on" data-capa="asambleas"><span class="caja"></span>Asambleas</button>
+    <button class="capa on" data-capa="carpas"><span class="caja"></span>Carpas</button>
+    <button class="capa on" data-capa="amigues"><span class="caja"></span>Amigues</button>
+    <button class="capa on" data-capa="pancartas"><span class="caja"></span>Pancartas</button>
+    <button class="capa tl" data-capa="timelapse"><span class="caja"></span>Timelapse</button>
+  </div>
+
+  <!-- ============ PLANO ============ -->
+  <section id="marco" class="sk">
+    <div id="mapa"></div>
+    <div class="regla" id="reglaT"></div><div class="regla" id="reglaB"></div>
+    <div class="regla" id="reglaL"></div><div class="regla" id="reglaR"></div>
+    <svg id="norte" viewBox="0 0 60 90" style="filter:url(#rough)"><path d="M30 6 46 62 30 52 14 62Z" fill="#1a1715"/><path d="M30 6 30 52 14 62Z" fill="#f1ebdf" stroke="#1a1715" stroke-width="2"/><text x="30" y="86" text-anchor="middle" font-family="Mono26" font-weight="700" font-size="16" fill="#1a1715">N</text></svg>
+    <div id="tlinfo"><span>timelapse</span><span class="pts"></span></div>
+    <div id="zoom"><button id="zmas" title="Acercar">+</button><button id="zmenos" title="Alejar">−</button><button id="zreset" title="Ver todo" style="font-size:18px">⟲</button></div>
+  </section>
+  <div id="pista">pincha en los puntos ↗</div>
+
+  <!-- ============ PIE / CAJETÍN ============ -->
+  <footer id="pie">
+    <div><b>26S</b> · Cartografía de la acampada por la vivienda</div>
+    <div>Autoría: <b>Claudia Torres y Marcos Escribano</b></div>
+    <div>Elaboración propia · 2026</div>
+    <div>Puerta del Sol · Madrid</div>
+    <div>Hoja 1/1</div>
+  </footer>
+
+  <!-- ============ FLOTANTES ============ -->
+  <div id="velo"></div>
+
+  <section id="asamblea" class="flotante">
+    <div class="texto"><div class="num"></div><h2></h2><div class="tipo"></div></div>
+  </section>
+
+  <div id="fichas" class="flotante"></div>
+  <section id="tarjeta" class="flotante"><button class="cerrar" data-cerrar>×</button><div class="n"></div><h3></h3><div class="redes"></div></section>
+  <div id="pancarta" class="flotante"><img alt=""><div class="pie"></div></div>
+
+  <section id="ventana" class="flotante">
+    <div class="barra"><div class="puntos"><i></i><i></i><i></i></div><div class="tabs"></div><div class="url"></div><a class="fuera" target="_blank" rel="noopener">abrir fuera ↗</a><button class="cerrar" data-cerrar>×</button></div>
+    <div class="cuerpo"></div>
+    <div class="piev"><div class="logo"></div><div><b></b><span></span></div><div class="redes"></div><em class="aviso-web">¿no carga? algunas webs no se dejan mostrar dentro de otra — usa «abrir fuera ↗»</em></div>
+  </section>
+
+  <section id="galeria" class="flotante">
+    <div class="aviso"></div>
+    <div class="marcofoto"><img alt=""></div>
+    <div class="ctrl"><button class="flecha" id="gant">←</button><div class="miniaturas"></div><span class="cont"></span><button class="flecha" id="gsig">→</button></div>
+  </section>
+
+  <section id="plan" class="flotante">
+    <h2>Domingo 27<br>lunes 28<small>así se está organizando la gente</small></h2>
+    <div class="invita">Varias personas han compartido cómo se organizan estos días. <b>Organízate tú también:</b> pasa por la acampada, súmate a una comisión, trae lo que puedas.</div>
+    <button class="cerrar" data-cerrar>×</button>
+  </section>
+</div>
+
+<script>
+/* =====================================================================
+   DATOS — lo que irás cambiando
+   Posiciones en píxeles del plano original (4961 × 3508): [x, y] desde arriba-izquierda
+   ===================================================================== */
+// el plano en varias resoluciones: la web usa la más nítida que haga falta según el zoom
+const PLANO = { niveles: [1300, 2600, 4961], carpeta: 'img/plano/', ancho: 4961, alto: 3508 };
+
+const ASAMBLEAS = [
+  { n: 1, pos: [1101, 2759], r: 120, titulo: 'Primera asamblea',            nota: 'la primera que se hizo en la acampada' },
+  { n: 2, pos: [1054, 1881], r: 120, titulo: 'Asamblea general',            nota: 'junto a la fuente' },
+  { n: 3, pos: [2171, 792],  r: 70,  titulo: 'Punto de información',        nota: '' },
+  { n: 4, pos: [2676, 897],  r: 120, titulo: 'Zona recreativa para niños',  nota: '' }
+];
+
+// Carpas: número del listado, posición y redes.
+// Si tiene instagram (o si no, web) se abre en la ventanita; el resto de redes salen como botones.
+const CARPAS = [
+  { n: 1,  pos: [372, 1528],  nombre: 'PAH Vallekas', instagram: 'pahvallekas', redes: { Facebook: 'https://www.facebook.com/pahvallekas/' } },
+  { n: 2,  pos: [267, 1639],  nombre: 'Sindicato de Barrio de San Blas', redes: { X: 'https://x.com/sindicatosbc' } },
+  { n: 3,  pos: [422, 1833],  nombre: 'Sindicato del Barrio de Hortaleza', instagram: 'sindicatodehortaleza', redes: { X: 'https://x.com/sindihortaleza', Web: 'https://sindicatodelbarriodehortaleza.wordpress.com/' } },
+  { n: 4,  pos: [323, 1913],  nombre: 'Asamblea de Vivienda de Villalba', redes: { X: 'https://x.com/VillalbaViviend', Facebook: 'https://www.facebook.com/p/Asamblea-de-vivienda-de-villalba-100069411450444/', Bluesky: 'https://bsky.app/profile/viviendavillalba.bsky.social' } },
+  { n: 5,  pos: [2145, 1726], nombre: 'Organización de Vivienda de Tetuán', redes: { X: 'https://x.com/oviviendatetuan' } },
+  { n: 6,  pos: [918, 1151],  nombre: 'Sindicato de Vivienda de Moratalaz', redes: { X: 'https://x.com/SindicatoMtz' } },
+  { n: 7,  pos: [2159, 728],  nombre: 'Sindicato de Vivienda de Carabanchel', redes: { X: 'https://x.com/SVCarabanchel', Bluesky: 'https://bsky.app/profile/svcarabanchel.bsky.social' } },
+  { n: 8,  pos: [978, 1264],  nombre: 'Sindicato de Vivienda de Tetuán', redes: { X: 'https://x.com/svtetuan', Bluesky: 'https://bsky.app/profile/svtetuan.bsky.social' } },
+  { n: 9,  pos: [2184, 855],  nombre: 'Puesto de información', web: 'https://acampada26s.net' },
+  { n: 10, pos: [3013, 1504], nombre: 'Sindicato de Inquilinas de Madrid', instagram: 'inquilinato_madrid', redes: { Telegram: 'https://t.me/s/inquilinatoMad' } },
+  { n: 11, pos: [2439, 1655], nombre: 'Puesto sobre animales inquilinos' },
+  { n: 12, pos: [1448, 1985], nombre: 'Juventudes Socialistas', web: 'https://www.juventudessocialistas.es' },
+  { n: 13, pos: [1286, 1423], nombre: 'Mesa de Izquierda Revolucionaria', web: 'https://izquierdarevolucionaria.net' },
+  { n: 14, pos: [3030, 1614], nombre: 'Greenpeace', web: 'https://es.greenpeace.org/es/' }
+];
+
+// Amigues: letra de la tienda en el plano → fichas que se abren
+const AMIGUES = [
+  { letra: 'A', pos: [2904, 1297], fichas: [2] },
+  { letra: 'B', pos: [2717, 1363], fichas: [3] },
+  { letra: 'C', pos: [2366, 1270], fichas: [4] },
+  { letra: 'D', pos: [3070, 1907], fichas: [1, 5] }
+];
+
+// Pancartas: número (= nombre del PNG en img/pancartas) y posición del círculo negro
+const PANCARTAS = [
+  { n: 1, pos: [1966, 852] }, { n: 2, pos: [2702, 767] }, { n: 3, pos: [1706, 945] }, { n: 4, pos: [1461, 1036] },
+  { n: 5, pos: [1575, 967] }, { n: 6, pos: [1619, 1140] }, { n: 7, pos: [596, 1498] }, { n: 8, pos: [774, 1296] },
+  { n: 9, pos: [2966, 754] }, { n: 10, pos: [1516, 2229] }, { n: 12, pos: [1565, 459] }
+  // la 11 está en el plano en [1917, 2195] pero no hay 11.png
+];
+
+const DIRECTOS = [
+  { nombre: 'Cámara de Sol', sub: 'Cámara pública · desactivada desde el inicio de la acampada', url: 'https://www.skylinewebcams.com/es/webcam/espana/comunidad-de-madrid/madrid/puerta-del-sol.html', apagada: true },
+  { nombre: 'Directo Cadena SER', sub: 'Emisión en directo', url: 'https://www.youtube.com/watch?v=Wy_e4QxUjYg&t=11493s', embed: 'https://www.youtube.com/embed/Wy_e4QxUjYg?start=11493&autoplay=1' },
+  { nombre: 'Cámara plaza de Canalejas', sub: 'Cámara de tráfico (DGT)', url: 'https://www.camarasdgt.es/madrid/m-00/calle-plaza-canalejas/' }
+];
+const PARTICIPAN = { url: 'https://acampada26s.net', titulo: 'Quiénes participan' };
+
+// Galería: pon aquí los nombres de las fotos de img/galeria (vacío = demostración con las pancartas)
+const GALERIA = Array.from({ length: 30 }, (_, i) => String(i + 1).padStart(2, '0') + '.jpg');
+
+// Timelapse: fotogramas en img/timelapse (el último, el degradado, se queda un poco más)
+// orden: CARTOGRAFIA FINAL 1, 2, 3, 4 y al final el DEGRADADO quieto
+const TIMELAPSE = { fotos: ['1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpg'], ms: 1600, pausaFinal: 5000 };
+
+// Planificación: publicaciones de Instagram
+const PLAN = [
+  'https://www.instagram.com/p/DdyIdamDg72/',
+  'https://www.instagram.com/p/Ddy7vF-Olsd/',
+  'https://www.instagram.com/p/Dd1RJWyjk1o/'
+];
+
+/* =====================================================================
+   CÓDIGO
+   ===================================================================== */
+const $ = s => document.querySelector(s);
+const R = ruta => (typeof IMG_EMBEBIDAS !== 'undefined' && IMG_EMBEBIDAS[ruta]) || ruta;
+const escena = $('#escena');
+
+// --- escalar el lienzo 1920×1080 a la ventana ---
+function encajar() {
+  const s = Math.min(innerWidth / 1920, innerHeight / 1080);
+  escena.style.transform = `translate(-50%,-50%) scale(${s})`;
+  escena.style.transformOrigin = 'center center';
+  if (window.map) map.invalidateSize();
+}
+addEventListener('resize', encajar); encajar();
+
+// --- reglas del marco ---
+'ABCDEFGHIJ'.split('').forEach(l => { $('#reglaT').insertAdjacentHTML('beforeend', `<span>${l}</span>`); $('#reglaB').insertAdjacentHTML('beforeend', `<span>${l}</span>`); });
+for (let i = 1; i <= 7; i++) { $('#reglaL').insertAdjacentHTML('beforeend', `<span>${i}</span>`); $('#reglaR').insertAdjacentHTML('beforeend', `<span>${i}</span>`); }
+
+// --- mapa ---
+const B = [[0, 0], [PLANO.alto, PLANO.ancho]];
+const ll = ([x, y]) => [PLANO.alto - y, x];
+const map = window.map = L.map('mapa', { crs: L.CRS.Simple, minZoom: -6, maxZoom: 4, zoomControl: false, attributionControl: false, zoomSnap: .25, zoomDelta: .5, wheelPxPerZoomLevel: 110, maxBoundsViscosity: 1 });
+const urlNivel = w => R(PLANO.carpeta + w + '.webp');
+let nivelActual = PLANO.niveles[0];
+const planoCapa = L.imageOverlay(urlNivel(nivelActual), B, { className: 'plano-img' }).addTo(map);
+map.fitBounds(B);
+const zMin = map.getZoom();
+map.setMinZoom(zMin); map.setMaxZoom(zMin + 3.25); map.setMaxBounds(B);
+// cambiar a la resolución adecuada al terminar cada zoom (precargando para que no parpadee)
+function ajustarNitidez() {
+  const pxPantalla = PLANO.ancho * Math.pow(2, map.getZoom()) * escala() * (window.devicePixelRatio || 1);
+  const w = PLANO.niveles.find(n => n >= pxPantalla * 0.9) || PLANO.niveles[PLANO.niveles.length - 1];
+  if (w <= nivelActual) return; // nunca bajar de calidad una vez cargada
+  const img = new Image(); img.onload = () => { planoCapa.setUrl(img.src); nivelActual = w; }; img.src = urlNivel(w);
+}
+map.on('zoomend', ajustarNitidez);
+setTimeout(ajustarNitidez, 50);
+$('#zmas').onclick = () => map.zoomIn();
+$('#zmenos').onclick = () => map.zoomOut();
+$('#zreset').onclick = () => map.flyToBounds(B, { duration: .6 });
+
+const grupos = { asambleas: L.layerGroup().addTo(map), carpas: L.layerGroup().addTo(map), amigues: L.layerGroup().addTo(map), pancartas: L.layerGroup().addTo(map) };
+const tag = (pos, txt, claro) => L.marker(ll(pos), { interactive: false, icon: L.divIcon({ className: '', iconSize: [0, 0], html: `<span class="tag ${claro ? 'claro' : ''}">${txt}</span>` }) });
+const hot = (pos, r, estilo) => L.circle(ll(pos), Object.assign({ radius: r, className: 'hot', color: '#1a1715', weight: 2.5, fillColor: '#ff5a1f', fillOpacity: 0 }, estilo));
+
+ASAMBLEAS.forEach(a => {
+  const c = hot(a.pos, a.r, { dashArray: '2 7', lineCap: 'round', weight: 3.5, className: 'hot pulso' }).addTo(grupos.asambleas);
+  c.bindTooltip(a.titulo, { className: 'nota', direction: 'top', offset: [0, -8] });
+  c.on('click', () => abrirAsamblea(a));
+  tag([a.pos[0] + a.r * .75, a.pos[1] - a.r * .75], 'A' + a.n).addTo(grupos.asambleas);
+});
+CARPAS.forEach(o => {
+  const c = hot(o.pos, 38, { weight: 2.5 }).addTo(grupos.carpas);
+  c.bindTooltip(o.nombre, { className: 'nota', direction: 'top', offset: [0, -6] });
+  c.on('click', () => abrirCarpa(o));
+  tag([o.pos[0] + 44, o.pos[1] - 38], o.n, true).addTo(grupos.carpas);
+});
+AMIGUES.forEach(a => {
+  const c = hot(a.pos, 40, { weight: 2.5, dashArray: '6 4' }).addTo(grupos.amigues);
+  c.bindTooltip(a.fichas.length > 1 ? 'Tienda compartida' : 'Tienda de amigue', { className: 'nota', direction: 'top', offset: [0, -6] });
+  c.on('click', () => abrirFichas(a));
+});
+PANCARTAS.forEach(p => {
+  const c = hot(p.pos, 34, { weight: 0, fillOpacity: 0 }).addTo(grupos.pancartas);
+  c.bindTooltip('Pancarta ' + p.n, { className: 'nota', direction: 'top', offset: [0, -6] });
+  c.on('click', () => abrirPancarta(p));
+});
+
+// --- capas ---
+const botonesCapa = [...document.querySelectorAll('.capa')];
+function ponerCapa(k, on) {
+  const b = botonesCapa.find(x => x.dataset.capa === k); b.classList.toggle('on', on);
+  on ? map.addLayer(grupos[k]) : map.removeLayer(grupos[k]);
+}
+let antesDelTimelapse = null;
+botonesCapa.forEach(b => b.onclick = () => {
+  const k = b.dataset.capa;
+  if (k === 'timelapse') { tlActivo ? pararTimelapse(true) : empezarTimelapse(); return; }
+  if (tlActivo) pararTimelapse(false);
+  ponerCapa(k, !b.classList.contains('on'));
+});
+
+// --- timelapse: fotogramas apilados que se encienden por turnos ---
+const tlCapas = TIMELAPSE.fotos.map(f => L.imageOverlay(R('img/timelapse/' + f), B, { opacity: 0, className: 'tl-img' }));
+let tlActivo = false, tlI = 0, tlTimer = null;
+const tlPts = $('#tlinfo .pts');
+tlPts.innerHTML = TIMELAPSE.fotos.map(() => '<i></i>').join('');
+function tlPaso() {
+  tlCapas.forEach((c, i) => c.setOpacity(i === tlI ? 1 : 0));
+  tlPts.querySelectorAll('i').forEach((p, i) => p.classList.toggle('on', i <= tlI));
+  const espera = tlI === tlCapas.length - 1 ? TIMELAPSE.pausaFinal : TIMELAPSE.ms;
+  tlI = (tlI + 1) % tlCapas.length;
+  tlTimer = setTimeout(tlPaso, espera);
+}
+function empezarTimelapse() {
+  tlActivo = true; antesDelTimelapse = Object.keys(grupos).filter(k => map.hasLayer(grupos[k]));
+  Object.keys(grupos).forEach(k => ponerCapa(k, false));
+  botonesCapa.find(x => x.dataset.capa === 'timelapse').classList.add('on');
+  tlCapas.forEach(c => c.addTo(map)); tlI = 0;
+  // esperar a que estén cargados todos los fotogramas antes de arrancar
+  Promise.all(tlCapas.map(c => { const im = c.getElement(); return im.complete && im.naturalWidth ? 0 : new Promise(r => { im.onload = im.onerror = r; }); }))
+    .then(() => { if (!tlActivo) return; map.removeLayer(planoCapa); tlPaso(); });
+  $('#tlinfo').classList.add('on');
+}
+function pararTimelapse(restaurar) {
+  tlActivo = false; clearTimeout(tlTimer); tlCapas.forEach(c => map.removeLayer(c));
+  if (!map.hasLayer(planoCapa)) planoCapa.addTo(map).bringToBack();
+  botonesCapa.find(x => x.dataset.capa === 'timelapse').classList.remove('on');
+  $('#tlinfo').classList.remove('on');
+  if (restaurar && antesDelTimelapse) antesDelTimelapse.forEach(k => ponerCapa(k, true));
+}
+
+/* ---------- flotantes: abrir / cerrar ---------- */
+const velo = $('#velo');
+let abiertos = [];
+function abrir(el, veloClaro) {
+  cerrarTodo();
+  velo.classList.toggle('claro', veloClaro === true);
+  velo.classList.toggle('papel', veloClaro === 'papel');
+  velo.classList.add('on'); el.classList.add('on'); abiertos.push(el);
+}
+function cerrarTodo() {
+  abiertos.forEach(el => { el.classList.remove('on'); el.querySelectorAll('iframe').forEach(f => f.remove()); });
+  abiertos = []; velo.classList.remove('on'); clearInterval(ruidoTimer);
+}
+velo.onclick = cerrarTodo;
+document.querySelectorAll('[data-cerrar]').forEach(b => b.onclick = cerrarTodo);
+addEventListener('keydown', e => { if (e.key === 'Escape') cerrarTodo(); });
+// clic en el fondo (fuera del contenido) cierra fichas, pancartas y galería
+['#fichas', '#pancarta', '#galeria', '#asamblea', '#plan'].forEach(s => $(s).addEventListener('click', e => { if (e.target === e.currentTarget || e.target.classList.contains('marcofoto')) cerrarTodo(); }));
+
+/* ---------- asambleas ---------- */
+function abrirAsamblea(a) {
+  const el = $('#asamblea');
+  el.querySelector('.num').textContent = String(a.n).padStart(2, '0');
+  el.querySelector('h2').textContent = a.titulo;
+  el.querySelector('.tipo').textContent = a.nota || '';
+  abrir(el);
+  const t = el.querySelector('.texto'); t.classList.remove('entra'); void t.offsetWidth; t.classList.add('entra');
+}
+
+/* ---------- fichas de amigues ---------- */
+function abrirFichas(a) {
+  const el = $('#fichas');
+  el.classList.toggle('dos', a.fichas.length > 1);
+  el.innerHTML = a.fichas.map(n => `<img src="${R(`img/amigos/${n}.png`)}" alt="Ficha ${n}">`).join('');
+  abrir(el);
+}
+
+/* ---------- pancartas ---------- */
+function abrirPancarta(p) {
+  const el = $('#pancarta');
+  const img = el.querySelector('img'); img.src = R(`img/pancartas/${p.n}.png`);
+  img.style.animation = 'none'; void img.offsetWidth; img.style.animation = '';
+  el.querySelector('.pie').textContent = 'Pancarta nº ' + p.n;
+  abrir(el);
+}
+
+/* ---------- ventana-navegador ---------- */
+const ven = $('#ventana');
+const enlacesRedes = redes => Object.entries(redes || {}).map(([k, u]) => `<a class="red" href="${u}" target="_blank" rel="noopener">${k} ↗</a>`).join('');
+function abrirVentana({ url, titulo, sub, logo, iniciales, pestañas, redes }) {
+  const fuera = ven.querySelector('.fuera');
+  const ponerUrl = (u, t, st) => { ven.querySelector('.url').textContent = u; fuera.href = u; if (t) ven.querySelector('.piev b').textContent = t; if (st !== undefined) ven.querySelector('.piev span').textContent = st; };
+  ven.querySelector('.piev b').textContent = titulo;
+  ven.querySelector('.piev span').textContent = sub || '';
+  ven.querySelector('.logo').innerHTML = logo ? `<img src="${R(logo)}" alt="">` : (iniciales || '');
+  ven.querySelector('.redes').innerHTML = enlacesRedes(redes);
+  const cuerpo = ven.querySelector('.cuerpo'); cuerpo.innerHTML = '';
+  const tabs = ven.querySelector('.tabs'); tabs.innerHTML = '';
+  if (pestañas) {
+    pestañas.forEach((p, i) => {
+      const b = document.createElement('button'); b.textContent = p.nombre;
+      b.onclick = () => { tabs.querySelectorAll('button').forEach(x => x.classList.remove('on')); b.classList.add('on'); cuerpo.innerHTML = ''; clearInterval(ruidoTimer); ponerUrl(p.url, p.nombre, p.sub || ''); p.pintar(cuerpo); };
+      tabs.appendChild(b); if (i === 0) b.click();
+    });
+  } else { ponerUrl(url); cuerpo.innerHTML = `<iframe src="${url}" loading="lazy" referrerpolicy="no-referrer"></iframe>`; }
+  ven.style.left = '620px'; ven.style.top = '150px';
+  abrir(ven, true);
+}
+function abrirCarpa(o) {
+  if (o.instagram || o.web) {
+    const ini = o.nombre.split(/\s+/).filter(w => w.length > 2 && !/^(del|de|la|las|los|sobre)$/i.test(w)).map(w => w[0]).join('').slice(0, 3).toUpperCase();
+    const url = o.instagram ? `https://www.instagram.com/${o.instagram}/` : o.web;
+    abrirVentana({ url, titulo: o.nombre, sub: 'Carpa nº ' + o.n, logo: o.logo, iniciales: ini, redes: o.redes });
+    if (o.instagram) ven.querySelector('iframe').src = `https://www.instagram.com/${o.instagram}/embed`;
+  } else {
+    const el = $('#tarjeta');
+    el.querySelector('.n').textContent = 'Carpa nº ' + o.n;
+    el.querySelector('h3').textContent = o.nombre;
+    el.querySelector('.redes').innerHTML = enlacesRedes(o.redes);
+    abrir(el, true);
+  }
+}
+// arrastrar la ventana por su barra
+(() => {
+  let d = null; const barra = ven.querySelector('.barra');
+  barra.addEventListener('pointerdown', e => { if (e.target.closest('a,button')) return; const s = escala(); d = { x: e.clientX, y: e.clientY, l: ven.offsetLeft, t: ven.offsetTop, s }; barra.setPointerCapture(e.pointerId); });
+  barra.addEventListener('pointermove', e => { if (!d) return; ven.style.left = d.l + (e.clientX - d.x) / d.s + 'px'; ven.style.top = d.t + (e.clientY - d.y) / d.s + 'px'; });
+  barra.addEventListener('pointerup', () => d = null);
+})();
+function escala() { return escena.getBoundingClientRect().width / 1920; }
+
+/* ---------- directo: señal cortada ---------- */
+let ruidoTimer;
+function pintarRuido(cuerpo) {
+  cuerpo.innerHTML = `<canvas id="ruido" width="320" height="200"></canvas><div class="senal"><div class="rec">CAM 01 · PUERTA DEL SOL</div><b>SEÑAL<br>INTERRUMPIDA</b><span>SIN IMAGEN DESDE EL 26S</span></div>`;
+  const cv = cuerpo.querySelector('canvas'), cx = cv.getContext('2d'), img = cx.createImageData(320, 200);
+  ruidoTimer = setInterval(() => { for (let i = 0; i < img.data.length; i += 4) { const v = Math.random() * 255 | 0; img.data[i] = img.data[i + 1] = img.data[i + 2] = v; img.data[i + 3] = 255; } cx.putImageData(img, 0, 0); }, 60);
+}
+function abrirDirecto() {
+  abrirVentana({ titulo: DIRECTOS[0].nombre, iniciales: '●', pestañas: DIRECTOS.map(d => ({
+    nombre: d.nombre, url: d.url, sub: d.sub,
+    pintar: d.apagada ? pintarRuido : c => c.innerHTML = `<iframe src="${d.embed || d.url}" allow="autoplay; encrypted-media; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`
+  })) });
+}
+
+/* ---------- galería ---------- */
+let gFotos = [], gI = 0;
+function abrirGaleria() {
+  const demo = !GALERIA.length;
+  gFotos = (demo ? PANCARTAS.map(p => `img/pancartas/${p.n}.png`) : GALERIA.map(f => 'img/galeria/' + f)).map(R);
+  $('#galeria .aviso').textContent = demo ? 'demostración — aquí irán las fotos de la carpeta de la galería' : '';
+  $('#galeria .miniaturas').innerHTML = gFotos.map((f, i) => `<img src="${f}" data-i="${i}">`).join('');
+  $('#galeria .miniaturas').onclick = e => { if (e.target.dataset.i) verFoto(+e.target.dataset.i); };
+  abrir($('#galeria')); verFoto(0);
+}
+function verFoto(i) {
+  gI = i; $('#galeria .marcofoto img').src = gFotos[i];
+  $('#galeria .cont').textContent = `${i + 1} / ${gFotos.length}`;
+  $('#gant').disabled = i === 0; $('#gsig').disabled = i === gFotos.length - 1;
+  document.querySelectorAll('#galeria .miniaturas img').forEach((m, k) => m.classList.toggle('on', k === i));
+  document.querySelector('#galeria .miniaturas img.on')?.scrollIntoView({ inline: 'center', block: 'nearest' });
+}
+$('#gant').onclick = () => gI > 0 && verFoto(gI - 1);
+$('#gsig').onclick = () => gI < gFotos.length - 1 && verFoto(gI + 1);
+addEventListener('keydown', e => { if (!$('#galeria').classList.contains('on')) return; if (e.key === 'ArrowLeft') $('#gant').click(); if (e.key === 'ArrowRight') $('#gsig').click(); });
+
+/* ---------- planificación ---------- */
+const posiciones = [[640, 150, -5], [1060, 260, 4], [1440, 120, -2], [860, 470, 7], [1300, 480, -6]];
+function abrirPlan() {
+  const el = $('#plan'); el.querySelectorAll('.post').forEach(p => p.remove());
+  let z = 10;
+  PLAN.forEach((u, i) => {
+    const [x, y, r] = posiciones[i % posiciones.length];
+    const id = (u.match(/\/p\/([^/?]+)/) || [])[1];
+    const p = document.createElement('div'); p.className = 'post';
+    p.style.cssText = `left:${x}px;top:${y}px;transform:rotate(${r}deg);z-index:${z++}`;
+    p.innerHTML = `<div class="cinta"></div><iframe src="https://www.instagram.com/p/${id}/embed/captioned/" loading="lazy" scrolling="no"></iframe>`;
+    p.onclick = () => { el.querySelectorAll('.post').forEach(q => q.classList.remove('frente')); p.classList.add('frente'); p.style.zIndex = ++z; };
+    el.appendChild(p);
+  });
+  abrir(el, 'papel');
+}
+
+/* ---------- iconos ---------- */
+const acciones = {
+  directo: abrirDirecto,
+  participan: () => abrirVentana({ url: PARTICIPAN.url, titulo: PARTICIPAN.titulo, sub: 'Organizaciones y colectivos de la acampada', iniciales: '26S' }),
+  galeria: abrirGaleria,
+  plan: abrirPlan
+};
+document.querySelectorAll('.icono').forEach(b => b.onclick = () => acciones[b.dataset.accion]());
+</script>
+</body>
+</html>
